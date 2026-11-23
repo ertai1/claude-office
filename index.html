@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://api.github.com; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="office-api" content="https://api.github.com">
+<meta name="office-repo" content="ertai1/claude-office-data">
+<title>Claude 사무실</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A2%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="floors card">
+    <div class="panel-head"><span>🏢 층별 안내</span><small>FLOOR GUIDE</small></div>
+    <label class="follow"><input type="checkbox" id="follow" checked> 최근 세션 자동으로 따라가기</label>
+    <div id="floorList" class="floor-list"></div>
+  </aside>
+  <main class="stage">
+    <header class="stage-head">
+      <div class="title-box">
+        <span id="floorBadge" class="floor-badge">-</span>
+        <div class="title-text">
+          <div id="floorName" class="floor-name">불러오는 중</div>
+          <div id="sessionTitle" class="session-title"></div>
+        </div>
+      </div>
+      <div class="head-actions">
+        <span id="live" class="live">● 대기</span>
+        <button id="relayButton" class="relay-button" type="button">⚙ 연결</button>
+      </div>
+    </header>
+    <div id="canvasWrap" class="canvas-wrap">
+      <canvas id="office"></canvas>
+      <div id="empty" class="empty" hidden>표시할 세션이 없습니다</div>
+    </div>
+    <div id="relayStatus" class="hint relay-status"></div>
+  </main>
+  <aside class="side">
+    <section class="card info-card">
+      <div class="kv"><span>프로젝트</span><code id="projectPath">-</code></div>
+      <div class="kv"><span>세션</span><code id="sessionId">-</code></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><span>사무실 사람들</span><small id="headcount"></small></div>
+      <div id="people" class="people"></div>
+    </section>
+    <section class="card grow">
+      <div class="card-head"><span>활동 로그</span><small id="logCount"></small></div>
+      <div id="log" class="log"></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><span>어디서 무엇을 하나</span></div>
+      <div id="legend" class="legend"></div>
+    </section>
+  </aside>
+</div>
+<div id="setup" class="setup" hidden>
+  <form id="setupForm" class="setup-card card" autocomplete="off">
+    <div class="setup-head"><b>휴대폰 연결</b><button id="setupClose" class="setup-close" type="button" hidden>닫기</button></div>
+    <p class="setup-note">PC 업로더가 GitHub 비공개 저장소에 올린 암호화된 상태를 이 브라우저 안에서 풀어 보여 줍니다. 토큰과 암호는 GitHub API 말고는 어디에도 보내지 않습니다.</p>
+    <label>저장소 <input id="setupRepo" placeholder="owner/name" autocapitalize="off" spellcheck="false"></label>
+    <label>GitHub 토큰 (이 저장소 읽기 전용) <input id="setupToken" type="password" autocapitalize="off" spellcheck="false"></label>
+    <label>암호 (PC의 passphrase.txt) <input id="setupPass" type="password" autocapitalize="off" spellcheck="false"></label>
+    <label class="setup-check"><input id="setupRemember" type="checkbox" checked> 이 브라우저에 기억하기</label>
+    <div id="setupError" class="setup-error" role="alert"></div>
+    <div class="setup-actions">
+      <button id="setupForget" class="setup-forget" type="button">이 기기에서 지우기</button>
+      <button id="setupConnect" class="setup-connect" type="submit">연결</button>
+    </div>
+  </form>
+</div>
+<div id="error" class="error" hidden></div>
+<script src="relay.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
