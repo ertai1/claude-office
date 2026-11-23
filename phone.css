@@ -1,0 +1,204 @@
+body.phone {
+  font-size: 14px;
+  -webkit-text-size-adjust: 100%;
+}
+
+.phone .app {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: auto;
+  padding: 0 10px 18px;
+}
+
+.phone .phone-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  gap: 8px;
+  margin: 0 -10px;
+  padding: 8px 10px;
+  background: var(--bg);
+}
+
+.phone .title-box {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 12px 6px 6px;
+}
+
+.phone .floor-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.phone .session-title { max-width: none; }
+
+.phone .head-actions { gap: 6px; }
+
+.phone .relay-button { padding: 7px 12px; }
+
+.phone .stage { gap: 0; }
+
+.phone .canvas-wrap {
+  flex: none;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 1000 / 640;
+  border-radius: 14px;
+}
+
+.phone .side { gap: 10px; }
+
+.phone .relay-status {
+  text-align: left;
+  padding: 0 2px;
+}
+
+.phone .people {
+  max-height: none;
+  overflow: visible;
+}
+
+.phone .tab-radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.phone .tab-bar {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: #f0f2f5;
+}
+
+.phone .tab-bar label {
+  flex: 1;
+  min-height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  font-weight: 700;
+  color: var(--sub);
+  cursor: pointer;
+  user-select: none;
+}
+
+.phone #tabLog:checked ~ .tab-bar .tab-log,
+.phone #tabFloors:checked ~ .tab-bar .tab-floors,
+.phone #tabLegend:checked ~ .tab-bar .tab-legend {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(20, 30, 50, 0.12);
+}
+
+.phone #tabLog:focus-visible ~ .tab-bar .tab-log,
+.phone #tabFloors:focus-visible ~ .tab-bar .tab-floors,
+.phone #tabLegend:focus-visible ~ .tab-bar .tab-legend {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.phone .tab-panel { display: none; }
+
+.phone #tabLog:checked ~ .panel-log,
+.phone #tabFloors:checked ~ .panel-floors,
+.phone #tabLegend:checked ~ .panel-legend {
+  display: block;
+}
+
+.phone .panel-note {
+  text-align: right;
+  color: var(--faint);
+  font-size: 11px;
+  min-height: 14px;
+}
+
+.phone .log { overflow: visible; }
+
+.phone .entry {
+  grid-template-columns: 62px 84px minmax(0, 1fr);
+  font-size: 13px;
+  padding: 7px 0;
+}
+
+.phone .follow { padding: 2px 4px 10px; font-size: 13px; }
+
+.phone .floor-list {
+  max-height: none;
+  overflow: visible;
+}
+
+.phone .floor-row { padding: 11px 10px; }
+
+.phone .session { padding: 9px 8px; font-size: 13px; }
+
+.phone .session-list { max-height: none; }
+
+.phone .info-card {
+  margin-top: 12px;
+  padding: 8px 2px 0;
+  border-top: 1px solid var(--line);
+}
+
+.phone .legend {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  font-size: 13px;
+}
+
+.phone .setup { z-index: 20; }
+
+.phone .error {
+  z-index: 21;
+  max-width: calc(100vw - 24px);
+}
+
+@media (orientation: landscape) and (min-width: 600px) {
+  .phone .app {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(280px, 32vw, 380px);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "head head" "stage side";
+    gap: 0 10px;
+    height: 100vh;
+    height: 100dvh;
+    padding: 0 10px 10px;
+  }
+
+  .phone .phone-head {
+    grid-area: head;
+    position: static;
+    padding: 6px 10px;
+  }
+
+  .phone .title-box { padding: 3px 12px 3px 3px; }
+
+  .phone .floor-badge { padding: 4px 8px; }
+
+  .phone .stage {
+    grid-area: stage;
+    min-height: 0;
+  }
+
+  .phone .canvas-wrap {
+    flex: 1;
+    height: auto;
+    aspect-ratio: auto;
+  }
+
+  .phone .side {
+    grid-area: side;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .phone .legend { grid-template-columns: 1fr 1fr; }
+}

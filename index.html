@@ -10,50 +10,59 @@
 <title>Claude 사무실</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%A2%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="phone.css">
 </head>
-<body>
+<body class="phone">
 <div class="app">
-  <aside class="floors card">
-    <div class="panel-head"><span>🏢 층별 안내</span><small>FLOOR GUIDE</small></div>
-    <label class="follow"><input type="checkbox" id="follow" checked> 최근 세션 자동으로 따라가기</label>
-    <div id="floorList" class="floor-list"></div>
-  </aside>
+  <header class="stage-head phone-head">
+    <div class="title-box">
+      <span id="floorBadge" class="floor-badge">-</span>
+      <div class="title-text">
+        <div id="floorName" class="floor-name">불러오는 중</div>
+        <div id="sessionTitle" class="session-title"></div>
+      </div>
+    </div>
+    <div class="head-actions">
+      <span id="live" class="live">● 대기</span>
+      <button id="relayButton" class="relay-button" type="button">⚙ 연결</button>
+    </div>
+  </header>
   <main class="stage">
-    <header class="stage-head">
-      <div class="title-box">
-        <span id="floorBadge" class="floor-badge">-</span>
-        <div class="title-text">
-          <div id="floorName" class="floor-name">불러오는 중</div>
-          <div id="sessionTitle" class="session-title"></div>
-        </div>
-      </div>
-      <div class="head-actions">
-        <span id="live" class="live">● 대기</span>
-        <button id="relayButton" class="relay-button" type="button">⚙ 연결</button>
-      </div>
-    </header>
     <div id="canvasWrap" class="canvas-wrap">
       <canvas id="office"></canvas>
       <div id="empty" class="empty" hidden>표시할 세션이 없습니다</div>
     </div>
-    <div id="relayStatus" class="hint relay-status"></div>
   </main>
   <aside class="side">
-    <section class="card info-card">
-      <div class="kv"><span>프로젝트</span><code id="projectPath">-</code></div>
-      <div class="kv"><span>세션</span><code id="sessionId">-</code></div>
-    </section>
-    <section class="card">
+    <div id="relayStatus" class="hint relay-status"></div>
+    <section class="card people-card">
       <div class="card-head"><span>사무실 사람들</span><small id="headcount"></small></div>
       <div id="people" class="people"></div>
     </section>
-    <section class="card grow">
-      <div class="card-head"><span>활동 로그</span><small id="logCount"></small></div>
-      <div id="log" class="log"></div>
-    </section>
-    <section class="card">
-      <div class="card-head"><span>어디서 무엇을 하나</span></div>
-      <div id="legend" class="legend"></div>
+    <section class="card tabs">
+      <input class="tab-radio" type="radio" name="tab" id="tabLog" checked>
+      <input class="tab-radio" type="radio" name="tab" id="tabFloors">
+      <input class="tab-radio" type="radio" name="tab" id="tabLegend">
+      <div class="tab-bar">
+        <label for="tabLog" class="tab-log">활동 로그</label>
+        <label for="tabFloors" class="tab-floors">층·세션</label>
+        <label for="tabLegend" class="tab-legend">자리 설명</label>
+      </div>
+      <div class="tab-panel panel-log">
+        <div class="panel-note"><small id="logCount"></small></div>
+        <div id="log" class="log"></div>
+      </div>
+      <div class="tab-panel panel-floors">
+        <label class="follow"><input type="checkbox" id="follow" checked> 최근 세션 자동으로 따라가기</label>
+        <div id="floorList" class="floor-list"></div>
+        <div class="info-card">
+          <div class="kv"><span>프로젝트</span><code id="projectPath">-</code></div>
+          <div class="kv"><span>세션</span><code id="sessionId">-</code></div>
+        </div>
+      </div>
+      <div class="tab-panel panel-legend">
+        <div id="legend" class="legend"></div>
+      </div>
     </section>
   </aside>
 </div>
