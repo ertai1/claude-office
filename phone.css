@@ -46,14 +46,14 @@ body.phone {
   width: 100%;
   height: auto;
   min-height: 0;
-  aspect-ratio: 1000 / 640;
+  aspect-ratio: 1368 / 744;
   border-radius: 14px;
 }
 
 @media (orientation: portrait) {
   .phone .canvas-wrap {
     --plan: tall;
-    aspect-ratio: 692 / 942;
+    aspect-ratio: 944 / 850;
   }
 }
 
