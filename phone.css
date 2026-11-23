@@ -50,6 +50,13 @@ body.phone {
   border-radius: 14px;
 }
 
+@media (orientation: portrait) {
+  .phone .canvas-wrap {
+    --plan: tall;
+    aspect-ratio: 692 / 942;
+  }
+}
+
 .phone .side { gap: 10px; }
 
 .phone .relay-status {

@@ -35,6 +35,21 @@ const NODES = {
 }
 const EDGES = [['a', 'b'], ['b', 'c'], ['c', 'e'], ['e', 'f'], ['b', 'g'], ['g', 'i'], ['e', 'h'], ['h', 'k'], ['i', 'j'], ['j', 'k'], ['k', 'l'], ['i', 'm']]
 const PLANTS = [[328, 248], [672, 248], [328, 462], [672, 462], [750, 560], [820, 600], [740, 500]]
+const WIDE = {
+  w: WORLD_W, h: WORLD_H, nodes: NODES, edges: EDGES, plants: PLANTS, spawn: [920, 596],
+  rooms: Object.fromEntries(Object.entries(ROOMS).map(([key, room]) => [key, { ...room, shift: [0, 0] }])),
+  pantry: { ...PANTRY, shift: [0, 0] },
+}
+const TALL = tallPlan({
+  w: 692, h: 942, spine: 376, hall: 25,
+  rooms: {
+    dev: [20, 20, 160], library: [60, 228, 120], lounge: [140, 436, 85], info: [60, 624, 100],
+    server: [392, 20, 85], meeting: [392, 228, 150], desk: [392, 436, 110], elevator: [392, 782, 60, 'top'],
+  },
+  pantry: [60, 782, 100],
+  plants: [[40, 320], [80, 500], [642, 80], [642, 160], [480, 680], [610, 730], [590, 840], [645, 900]],
+})
+const INTERIORS = ['library', 'meeting', 'dev', 'lounge', 'desk', 'server', 'info', 'elevator']
 const KIND_STYLES = {
   main: { body: '#d97757', hair: '#4a3426' },
   Explore: { body: '#3fa66b', hair: '#3a2b20', cap: '#2e7d4f' },
@@ -87,6 +102,7 @@ let currentSession = null
 let placeDirect = true
 let elevatorOpen = 0
 let view = { dpr: 1, scale: 1, ox: 0, oy: 0, width: 0, height: 0 }
+let plan = WIDE
 let timer = 0
 let inflight = false
 let generation = 0
@@ -159,8 +175,51 @@ function roomOf(key) {
   return ROOMS[key] ? key : 'desk'
 }
 
+function tallPlan(spec) {
+  const place = (base, [x, y, door, wall]) => {
+    const [bx, by, w, h] = base.rect
+    const shift = [x - bx, y - by]
+    const side = wall ?? (x + w <= spec.spine ? 'right' : 'left')
+    return {
+      ...base, shift, side, rect: [x, y, w, h], door: side === 'top' ? [x + door, y] : [side === 'right' ? x + w : x, y + door],
+      slots: (base.slots ?? []).map(([sx, sy]) => [sx + shift[0], sy + shift[1]]),
+    }
+  }
+  const rooms = Object.fromEntries(Object.entries(spec.rooms).map(([key, at]) => [key, { ...place(ROOMS[key], at), node: key }]))
+  const nodes = {}
+  const edges = []
+  for (const [key, room] of Object.entries(rooms)) {
+    const [dx, dy] = room.door
+    if (room.side !== 'top') {
+      nodes[key] = [spec.spine, dy]
+      continue
+    }
+    nodes[key] = [dx, dy - spec.hall]
+    nodes[`${key}-hall`] = [spec.spine, dy - spec.hall]
+    edges.push([key, `${key}-hall`])
+  }
+  const order = Object.keys(nodes).filter(key => nodes[key][0] === spec.spine).sort((p, q) => nodes[p][1] - nodes[q][1])
+  const [ex, ey] = rooms.elevator.shift
+  return {
+    w: spec.w, h: spec.h, rooms, nodes, plants: spec.plants, pantry: place(PANTRY, spec.pantry),
+    edges: [...edges, ...order.slice(1).map((key, i) => [order[i], key])], spawn: [WIDE.spawn[0] + ex, WIDE.spawn[1] + ey],
+  }
+}
+
+function replan(next) {
+  plan = next
+  for (const sprite of [...sprites.values()]) {
+    if (sprite.gone || sprite.slot < 0) {
+      sprites.delete(sprite.id)
+      continue
+    }
+    const [x, y] = slotPos(sprite.room, sprite.slot)
+    Object.assign(sprite, { x, y, path: [], moving: false, alpha: 1 })
+  }
+}
+
 function slotPos(room, index) {
-  const { slots, rect } = ROOMS[room]
+  const { slots, rect } = plan.rooms[room]
   if (index < slots.length) return slots[index]
   const [x, y, w, h] = rect
   const cols = Math.max(1, Math.floor((w - 40) / 28))
@@ -173,17 +232,18 @@ function shortest(from, to) {
   if (from === to) return [from]
   const dist = { [from]: 0 }
   const prev = {}
-  const open = new Set(Object.keys(NODES))
+  const { nodes, edges } = plan
+  const open = new Set(Object.keys(nodes))
   while (open.size) {
     let best = null
     for (const n of open) if (dist[n] !== undefined && (best === null || dist[n] < dist[best])) best = n
     if (best === null) break
     open.delete(best)
     if (best === to) break
-    for (const [p, q] of EDGES) {
+    for (const [p, q] of edges) {
       const next = p === best ? q : q === best ? p : null
       if (!next || !open.has(next)) continue
-      const d = dist[best] + Math.hypot(NODES[best][0] - NODES[next][0], NODES[best][1] - NODES[next][1])
+      const d = dist[best] + Math.hypot(nodes[best][0] - nodes[next][0], nodes[best][1] - nodes[next][1])
       if (dist[next] === undefined || d < dist[next]) { dist[next] = d; prev[next] = best }
     }
   }
@@ -197,8 +257,8 @@ function point(xy, anchor, door) {
 }
 
 function pathFrom(node, toRoom, target) {
-  const to = ROOMS[toRoom]
-  return [...shortest(node, to.node).map(n => point(NODES[n], n, null)), point(to.door, to.node, toRoom), point(target, null, null)]
+  const to = plan.rooms[toRoom]
+  return [...shortest(node, to.node).map(n => point(plan.nodes[n], n, null)), point(to.door, to.node, toRoom), point(target, null, null)]
 }
 
 function reroute(sprite, toRoom, target) {
@@ -206,7 +266,7 @@ function reroute(sprite, toRoom, target) {
   if (next && next.door === toRoom) return [next, point(target, null, null)]
   if (next && next.anchor) return [next, ...pathFrom(next.anchor, toRoom, target)]
   if (sprite.room === toRoom) return [point(target, null, null)]
-  const from = ROOMS[sprite.room]
+  const from = plan.rooms[sprite.room]
   return [point(from.door, from.node, sprite.room), ...pathFrom(from.node, toRoom, target)]
 }
 
@@ -232,7 +292,7 @@ function syncActors(office) {
     let sprite = sprites.get(actor.id)
     if (!sprite) {
       const direct = placeDirect || actor.main
-      const spawn = direct ? target : [920, 596]
+      const spawn = direct ? target : plan.spawn
       sprite = { id: actor.id, x: spawn[0], y: spawn[1], path: [], room: direct ? room : 'elevator', slot: direct ? index : -1, alpha: direct ? 1 : 0, gone: false, moving: false, phase: Math.random() * 6 }
       sprites.set(actor.id, sprite)
     }
@@ -248,7 +308,7 @@ function syncActors(office) {
     if (seen.has(sprite.id) || sprite.gone) continue
     sprite.gone = true
     if (sprite.room !== 'elevator') {
-      sprite.path = reroute(sprite, 'elevator', [920, 596])
+      sprite.path = reroute(sprite, 'elevator', plan.spawn)
       sprite.room = 'elevator'
       sprite.slot = -1
     }
@@ -259,6 +319,7 @@ function syncActors(office) {
 
 function step(dt) {
   let busy = false
+  const [ex, ey, ew] = plan.rooms.elevator.rect
   for (const sprite of [...sprites.values()]) {
     let budget = SPEED * dt
     while (budget > 0 && sprite.path.length) {
@@ -284,7 +345,7 @@ function step(dt) {
     } else {
       sprite.alpha = Math.min(1, sprite.alpha + dt * 2)
     }
-    if (sprite.x > 860 && sprite.y > 470 && (sprite.moving || sprite.alpha < 1)) busy = true
+    if (sprite.x > ex && sprite.x < ex + ew && sprite.y > ey - 10 && (sprite.moving || sprite.alpha < 1)) busy = true
   }
   elevatorOpen += ((busy ? 1 : 0) - elevatorOpen) * Math.min(1, dt * 6)
 }
@@ -475,8 +536,9 @@ function drawElevator(floorText) {
 }
 
 function drawPantry() {
-  drawShell(PANTRY)
-  for (const [tx, ty] of [[80, 545], [170, 570], [260, 545]]) {
+  drawShell(plan.pantry)
+  const [sx, sy] = plan.pantry.shift
+  for (const [tx, ty] of [[80 + sx, 545 + sy], [170 + sx, 570 + sy], [260 + sx, 545 + sy]]) {
     circle(tx, ty, 14, '#e8c9a0', '#cfae82')
     circle(tx - 20, ty, 5, '#d98c4a')
     circle(tx + 20, ty, 5, '#d98c4a')
@@ -538,7 +600,7 @@ function drawTag(sprite) {
   ctx.font = `700 10px ${FONT}`
   const name = clipText(actor.name, 120)
   const w = ctx.measureText(name).width + 20
-  const x = sprite.x - w / 2
+  const x = Math.max(6, Math.min(plan.w - w - 6, sprite.x - w / 2))
   const y = sprite.y + 6
   box(x, y, w, 16, 'rgba(255, 255, 255, 0.92)', '#d9dee6', 8)
   circle(x + 8, y + 8, 3, style.body)
@@ -607,7 +669,7 @@ function drawBubble(sprite, now, t) {
   const lines = wrapText(text, maxW, maxLines)
   const w = Math.max(...lines.map(line => ctx.measureText(line).width)) + 16
   const h = lines.length * 15 + 9
-  const x = Math.max(6, Math.min(WORLD_W - w - 6, sprite.x - w / 2))
+  const x = Math.max(6, Math.min(plan.w - w - 6, sprite.x - w / 2))
   const y = Math.max(4, sprite.y - 48 - h)
   ctx.globalAlpha = Math.max(0, Math.min(1, sprite.alpha))
   rr(x, y, w, h, 8)
@@ -637,20 +699,25 @@ function draw(t) {
   ctx.fillRect(0, 0, ui.canvas.width, ui.canvas.height)
   const s = view.dpr * view.scale
   ctx.setTransform(s, 0, 0, s, view.dpr * view.ox, view.dpr * view.oy)
-  box(8, 8, WORLD_W - 16, WORLD_H - 16, '#f3f4f7', '#d5d9e0', 16)
+  box(8, 8, plan.w - 16, plan.h - 16, '#f3f4f7', '#d5d9e0', 16)
   drawPantry()
-  for (const room of Object.values(ROOMS)) drawShell(room)
-  drawLibrary()
-  drawMeeting()
-  drawDev(t)
-  drawLounge()
-  drawDesk()
-  drawServer(t)
-  drawInfo(t)
-  drawElevator(state?.office ? `▲ ${state.office.floor}F` : '▲ -')
-  for (const [px, py] of PLANTS) drawPlant(px, py)
-  drawLabel(PANTRY)
-  for (const room of Object.values(ROOMS)) drawLabel(room)
+  for (const room of Object.values(plan.rooms)) drawShell(room)
+  const floorText = state?.office ? `▲ ${state.office.floor}F` : '▲ -'
+  const paint = { library: drawLibrary, meeting: drawMeeting, dev: drawDev, lounge: drawLounge, desk: drawDesk, server: drawServer, info: drawInfo, elevator: () => drawElevator(floorText) }
+  for (const key of INTERIORS) {
+    const [sx, sy] = plan.rooms[key].shift
+    if (!sx && !sy) {
+      paint[key](t)
+      continue
+    }
+    ctx.save()
+    ctx.translate(sx, sy)
+    paint[key](t)
+    ctx.restore()
+  }
+  for (const [px, py] of plan.plants) drawPlant(px, py)
+  drawLabel(plan.pantry)
+  for (const room of Object.values(plan.rooms)) drawLabel(room)
   const ordered = [...sprites.values()].filter(sp => sp.data).sort((p, q) => p.y - q.y)
   for (const sprite of ordered) drawPerson(sprite, t)
   for (const sprite of ordered) drawTag(sprite)
@@ -670,12 +737,14 @@ function frame(nowMs) {
 }
 
 function layout() {
+  const next = getComputedStyle(ui.wrap).getPropertyValue('--plan').trim() === 'tall' ? TALL : WIDE
+  if (next !== plan) replan(next)
   const rect = ui.wrap.getBoundingClientRect()
   const dpr = window.devicePixelRatio || 1
   ui.canvas.width = Math.max(1, Math.round(rect.width * dpr))
   ui.canvas.height = Math.max(1, Math.round(rect.height * dpr))
-  const scale = Math.min(rect.width / WORLD_W, rect.height / WORLD_H)
-  view = { dpr, scale, ox: (rect.width - WORLD_W * scale) / 2, oy: (rect.height - WORLD_H * scale) / 2, width: rect.width, height: rect.height }
+  const scale = Math.min(rect.width / plan.w, rect.height / plan.h)
+  view = { dpr, scale, ox: (rect.width - plan.w * scale) / 2, oy: (rect.height - plan.h * scale) / 2, width: rect.width, height: rect.height }
 }
 
 function renderHeader(office, now) {

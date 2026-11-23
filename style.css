@@ -387,13 +387,14 @@ body {
   position: fixed;
   inset: 0;
   display: grid;
-  place-items: center;
+  overflow-y: auto;
   background: rgba(20, 30, 50, 0.35);
   padding: 16px;
 }
 
 .setup-card {
   width: min(420px, 100%);
+  margin: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
