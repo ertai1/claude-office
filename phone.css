@@ -62,8 +62,12 @@ body.phone {
   overflow: visible;
 }
 
-.phone .tab-radio {
-  position: absolute;
+.phone .tab-radio,
+.phone .more-toggle {
+  position: fixed;
+  top: 0;
+  left: 0;
+  margin: 0;
   width: 1px;
   height: 1px;
   opacity: 0;
@@ -122,6 +126,33 @@ body.phone {
 }
 
 .phone .log { overflow: visible; }
+
+.phone #logMore:not(:checked) ~ .log .entry:nth-child(n+21) { display: none; }
+
+.phone .log-more {
+  display: grid;
+  place-items: center;
+  min-height: 38px;
+  margin-top: 8px;
+  border-radius: 8px;
+  background: #f0f2f5;
+  color: var(--sub);
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+}
+
+.phone .panel-log:not(:has(.entry:nth-child(21))) .log-more { display: none; }
+
+.phone .log-more .less,
+.phone #logMore:checked ~ .log-more .more { display: none; }
+
+.phone #logMore:checked ~ .log-more .less { display: inline; }
+
+.phone #logMore:focus-visible ~ .log-more {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 .phone .entry {
   grid-template-columns: 62px 84px minmax(0, 1fr);
