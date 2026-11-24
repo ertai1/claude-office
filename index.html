@@ -16,16 +16,17 @@
 <div class="app">
   <header class="stage-head phone-head">
     <div class="title-box">
-      <span id="floorBadge" class="floor-badge">-</span>
+      <span id="sessionChip" class="session-chip">-</span>
       <div class="title-text">
-        <div id="floorName" class="floor-name">불러오는 중</div>
-        <div id="sessionTitle" class="session-title"></div>
+        <div id="sessionTitle" class="head-title">불러오는 중</div>
+        <div id="groupName" class="head-sub"></div>
       </div>
     </div>
     <div class="head-actions">
       <span id="live" class="live">● 대기</span>
       <button id="relayButton" class="relay-button" type="button">⚙ 연결</button>
     </div>
+    <div id="limits" class="limits" hidden></div>
   </header>
   <main class="stage">
     <div id="canvasWrap" class="canvas-wrap">
@@ -36,16 +37,16 @@
   <aside class="side">
     <div id="relayStatus" class="hint relay-status"></div>
     <section class="card people-card">
-      <div class="card-head"><span>마을 사람들</span><small id="headcount"></small></div>
+      <div class="card-head"><span>이 세션의 일행</span><small id="headcount"></small></div>
       <div id="people" class="people"></div>
     </section>
     <section class="card tabs">
       <input class="tab-radio" type="radio" name="tab" id="tabLog" checked>
-      <input class="tab-radio" type="radio" name="tab" id="tabFloors">
+      <input class="tab-radio" type="radio" name="tab" id="tabSessions">
       <input class="tab-radio" type="radio" name="tab" id="tabLegend">
       <div class="tab-bar">
         <label for="tabLog" class="tab-log">활동 로그</label>
-        <label for="tabFloors" class="tab-floors">층·세션</label>
+        <label for="tabSessions" class="tab-sessions">세션</label>
         <label for="tabLegend" class="tab-legend">건물 설명</label>
       </div>
       <div class="tab-panel panel-log">
@@ -54,9 +55,9 @@
         <div id="log" class="log"></div>
         <label for="logMore" class="log-more"><span class="more">이전 기록 더 보기</span><span class="less">접기</span></label>
       </div>
-      <div class="tab-panel panel-floors">
+      <div class="tab-panel panel-sessions">
         <label class="follow"><input type="checkbox" id="follow" checked> 최근 세션 자동으로 따라가기</label>
-        <div id="floorList" class="floor-list"></div>
+        <div id="sessionList" class="session-list"></div>
         <div class="info-card">
           <div class="kv"><span>프로젝트</span><code id="projectPath">-</code></div>
           <div class="kv"><span>세션</span><code id="sessionId">-</code></div>

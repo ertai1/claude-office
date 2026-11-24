@@ -211,7 +211,7 @@
     }
     const json = await new Response(new Blob([plain]).stream().pipeThrough(new DecompressionStream('gzip'))).text()
     const snap = JSON.parse(json)
-    if (!snap || snap.v !== 1 || !Array.isArray(snap.floors) || !Array.isArray(snap.offices) || typeof snap.now !== 'number') {
+    if (!snap || snap.v !== 2 || !Array.isArray(snap.offices) || typeof snap.now !== 'number') {
       throw fail('이 뷰어가 모르는 상태 형식입니다 · 페이지를 새로 고쳐 주세요', SETUP_WAIT_MS)
     }
     return snap
@@ -230,24 +230,17 @@
     dom.status.classList.toggle('stale', stale)
   }
 
-  function quiet(floors) {
-    return floors.map(floor => ({
-      ...floor, active: false, sessions: floor.sessions.map(session => ({ ...session, active: false })),
-    }))
-  }
-
   function compose(snap, session) {
     const stale = ageOf(snap) > STALE_S
-    const offices = new Map(snap.offices.map(office => [office.sessionId, office]))
-    const wanted = session ?? snap.followed
-    const found = offices.get(wanted) ?? null
-    const office = found && stale ? { ...found, live: false } : found
-    const notice = session && !office ? '이 세션은 PC가 휴대폰으로 보낸 최근 세션에 들지 않았습니다 · 자동으로 따라가기를 켜면 최근 세션으로 돌아갑니다' : ''
-    return { now: Date.now() / 1000, follow: false, office, floors: stale ? quiet(snap.floors) : snap.floors, notice }
+    const offices = stale ? snap.offices.map(office => ({ ...office, live: false, active: false })) : snap.offices
+    const has = id => typeof id === 'string' && offices.some(office => office.sessionId === id)
+    const picked = has(session)
+    const selected = picked ? session : has(snap.followed) ? snap.followed : offices[0]?.sessionId ?? null
+    return { now: Date.now() / 1000, follow: !picked, selected, offices, limits: snap.limits }
   }
 
   function empty() {
-    return { now: Date.now() / 1000, follow: false, office: null, floors: [], notice: '' }
+    return { now: Date.now() / 1000, follow: false, selected: null, offices: [] }
   }
 
   window.officeSource = {

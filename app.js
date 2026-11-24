@@ -29,7 +29,7 @@ const ROOMS = {
   library: { label: '대도서관', en: 'GRAND LIBRARY', icon: '📜', note: '파일 읽기 · 검색', gate: 'right', floor: '#c9965c', wall: '#efe2c4' },
   meeting: { label: '작전지휘소', en: 'WAR ROOM', icon: '🗺️', note: '계획 · 할 일 · 스킬', gate: 'right', floor: '#cdb084', wall: '#f1e4c8' },
   dev: { label: '대장간', en: 'FORGE', icon: '⚒️', note: '코드 작성 · 수정', gate: 'right', floor: '#8e877c', wall: '#a89e8f' },
-  lounge: { label: '주점', en: 'TAVERN', icon: '🍺', note: '30분 넘게 조용함', gate: 'bottom', floor: '#a9743f', wall: '#ecd8b0' },
+  lounge: { label: '주점', en: 'TAVERN', icon: '🍺', note: '30분 넘게 조용함 · 3시간 뒤 자러 감', gate: 'bottom', floor: '#a9743f', wall: '#ecd8b0' },
   desk: { label: '타운홀', en: 'TOWN HALL', icon: '🏛️', note: '질문 · 에이전트 호출 · 답변', gate: 'bottom', floor: '#e8e0cc', wall: '#f3ead2' },
   server: { label: '무기고', en: 'ARMORY', icon: '⚔️', note: '명령 실행 · git', gate: 'bottom', floor: '#9b968c', wall: '#a7a297' },
   info: { label: '정찰소', en: 'SCOUT POST', icon: '🔭', note: '웹 · 외부 도구', gate: 'bottom', floor: '#bb8f5c', wall: '#ead9b2' },
@@ -56,20 +56,13 @@ const STATIONS = {
   info: [[64, 54, -1], [105, 124, 1], [134, 70, 1], [76, 36, -1], [126, 100, -1], [36, 96, -1], [70, 120, 1], [140, 114, -1]],
   elevator: [[116, 62, -1], [62, 116, 1], [118, 118, 1], [146, 84, -1], [84, 146, 1], [144, 144, 1], [146, 40, -1], [40, 146, 1]],
 }
-const KIND_STYLES = {
-  main: { body: '#d97757', hair: '#4a3426', gear: 'crown' },
-  Explore: { body: '#3fa66b', hair: '#3a2b20', gear: 'hood', cap: '#2e7d4f' },
-  Plan: { body: '#8a63d2', hair: '#2b2b35', gear: 'wizard', glasses: true, cap: '#5b3fa8' },
-  'general-purpose': { body: '#4a7fd6', hair: '#3a2b20', gear: 'helm' },
-  'code-reviewer': { body: '#2b9aa0', hair: '#5a4030', gear: 'scholar', glasses: true, cap: '#24324a' },
-  'web-fetch': { body: '#3aa3d9', hair: '#3a2b20', gear: 'feather', cap: '#1f6f99' },
-}
-const GEARS = ['hood', 'wizard', 'helm', 'feather', 'scholar']
-const PALETTE = ['#e0864b', '#c2558f', '#5b8c3a', '#7a5bd1', '#2f8fbf', '#b5892f', '#cf5a5a', '#3f9f8f']
-const STATUS_LABELS = { working: '작업 중', thinking: '고민 중', talking: '말하는 중', received: '요청 받음', waiting: '대기', leaving: '귀환 중', resting: '쉬는 중' }
+const SESSION_COLORS = ['#d64545', '#3b6fd8', '#e0a91f', '#8a4fd0', '#1f9e8f', '#ec7a28', '#e0559a', '#4a5262']
+const SERVANT_SCALE = 0.84
+const APRON = '#fbf6e9'
+const STATUS_LABELS = { working: '작업 중', thinking: '고민 중', talking: '말하는 중', received: '요청 받음', waiting: '대기', leaving: '귀환 중', resting: '쉬는 중', sleeping: '자는 중' }
 const STATUS_TONES = {
   working: ['#e6f0ff', '#2f62c9'], thinking: ['#f0ebff', '#6b4fd0'], talking: ['#fff1e6', '#b8642f'], received: ['#e6f0ff', '#2f62c9'],
-  waiting: ['#eef0f4', '#5b6474'], leaving: ['#fdf0d9', '#9a6a14'], resting: ['#eef0f4', '#8a93a3'],
+  waiting: ['#eef0f4', '#5b6474'], leaving: ['#fdf0d9', '#9a6a14'], resting: ['#eef0f4', '#8a93a3'], sleeping: ['#ebe8f7', '#5d54a0'],
 }
 const ACTIVE = new Set(['working', 'thinking', 'talking', 'received'])
 const LOG_ICONS = { agent: '🌀', say: '💬', error: '😓', prompt: '👤', done: '✅', notice: '🔔', stop: '⏹' }
@@ -83,9 +76,10 @@ const ui = {
   wrap: document.getElementById('canvasWrap'),
   empty: document.getElementById('empty'),
   follow: document.getElementById('follow'),
-  floorList: document.getElementById('floorList'),
-  floorBadge: document.getElementById('floorBadge'),
-  floorName: document.getElementById('floorName'),
+  sessionList: document.getElementById('sessionList'),
+  limits: document.getElementById('limits'),
+  sessionChip: document.getElementById('sessionChip'),
+  groupName: document.getElementById('groupName'),
   sessionTitle: document.getElementById('sessionTitle'),
   live: document.getElementById('live'),
   projectPath: document.getElementById('projectPath'),
@@ -103,10 +97,8 @@ let state = null
 let clockOffset = 0
 let follow = true
 let selected = null
-let expanded = null
-let floorSig = ''
+let listSig = ''
 let logSig = ''
-let currentSession = null
 let placeDirect = true
 let portalPower = 0
 let view = { dpr: 1, scale: 1, ox: 0, oy: 0, width: 0, height: 0 }
@@ -119,6 +111,7 @@ let pointer = null
 let ground = null
 let lastOrder = []
 let lastGhosts = []
+let lastCards = []
 const sprites = new Map()
 const localSource = {
   interval: POLL_MS,
@@ -131,6 +124,8 @@ const localSource = {
   },
 }
 const source = window.officeSource ?? localSource
+const PHONE = document.body.classList.contains('phone')
+const servantNumbers = new Map()
 
 function el(tag, cls, text) {
   const node = document.createElement(tag)
@@ -176,11 +171,59 @@ function hashIndex(text, size) {
   return h % size
 }
 
-function styleFor(actor) {
-  if (actor.main) return KIND_STYLES.main
-  if (KIND_STYLES[actor.kind]) return KIND_STYLES[actor.kind]
-  const body = PALETTE[hashIndex(actor.kind || actor.id, PALETTE.length)]
-  return { body, hair: '#3a2b20', glasses: hashIndex(actor.id, 3) === 0, gear: GEARS[hashIndex(actor.kind || actor.id, GEARS.length)], cap: body }
+function colorSlot(office) {
+  const index = Number.isInteger(office?.color) ? office.color : 0
+  return ((index % SESSION_COLORS.length) + SESSION_COLORS.length) % SESSION_COLORS.length
+}
+
+function colorOf(office) {
+  return SESSION_COLORS[colorSlot(office)]
+}
+
+function numberServants(offices) {
+  const seen = new Set()
+  for (const office of offices) {
+    const taken = new Set()
+    const fresh = []
+    for (const actor of office.actors.slice(1)) {
+      const key = `${office.sessionId}/${actor.id}`
+      seen.add(key)
+      if (servantNumbers.has(key)) taken.add(servantNumbers.get(key))
+      else fresh.push(key)
+    }
+    for (const [key, number] of servantNumbers) if (!seen.has(key) && sprites.has(key) && key.startsWith(`${office.sessionId}/`)) taken.add(number)
+    let next = 1
+    for (const key of fresh) {
+      while (taken.has(next)) next += 1
+      servantNumbers.set(key, next)
+      taken.add(next)
+    }
+  }
+  for (const key of [...servantNumbers.keys()]) if (!seen.has(key) && !sprites.has(key)) servantNumbers.delete(key)
+}
+
+function tagOf(office, actor) {
+  const base = `#${colorSlot(office) + 1}`
+  return actor.main ? base : `${base}-${servantNumbers.get(`${office.sessionId}/${actor.id}`) ?? '?'}`
+}
+
+function styleFor(actor, color) {
+  if (actor.main) return { body: color, cape: shade(color, 0.62), hair: '#4a3426', gear: 'crown' }
+  return { body: color, cap: color, hair: '#3a2b20', gear: 'servant', apron: true }
+}
+
+function chosenId(data) {
+  if (!follow && selected) return selected
+  return data?.selected ?? null
+}
+
+function focusId() {
+  return chosenId(state)
+}
+
+function officeOf(data) {
+  const id = chosenId(data)
+  return data?.offices?.find(office => office.sessionId === id) ?? null
 }
 
 function roomOf(key) {
@@ -551,49 +594,53 @@ function reroute(sprite, toRoom, target) {
   return pathFrom(nearestNode(...pos), toRoom, target)
 }
 
-function syncActors(office) {
-  if (!office) {
+function syncActors(offices) {
+  if (!offices.length) {
     sprites.clear()
-    currentSession = null
     placeDirect = true
     return
   }
-  if (office.sessionId !== currentSession) {
-    sprites.clear()
-    currentSession = office.sessionId
-    placeDirect = true
-  }
+  const people = []
   const seen = new Set()
+  for (const office of offices) {
+    for (const actor of office.actors) {
+      if (actor.status === 'sleeping') continue
+      const key = `${office.sessionId}/${actor.id}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      people.push({ key, office, actor, room: roomOf(actor.room) })
+    }
+  }
   const taken = {}
   const kept = new Set()
   const seats = room => (taken[room] ??= new Set())
-  for (const actor of office.actors) {
-    const room = roomOf(actor.room)
-    const sprite = sprites.get(actor.id)
+  for (const { key, room } of people) {
+    const sprite = sprites.get(key)
     if (sprite && sprite.room === room && sprite.slot >= 0) {
       seats(room).add(sprite.slot)
-      kept.add(actor.id)
+      kept.add(key)
     }
   }
-  for (const actor of office.actors) {
-    const room = roomOf(actor.room)
-    let sprite = sprites.get(actor.id)
+  for (const { key, office, actor, room } of people) {
+    let sprite = sprites.get(key)
     let index = 0
-    if (kept.has(actor.id)) {
+    if (kept.has(key)) {
       index = sprite.slot
     } else {
       while (seats(room).has(index)) index++
       seats(room).add(index)
     }
     const target = slotPos(room, index)
-    seen.add(actor.id)
     if (!sprite) {
       const direct = placeDirect || actor.main
       const spawn = direct ? target : plan.spawn
-      sprite = { id: actor.id, x: spawn[0], y: spawn[1], path: [], room: direct ? room : 'elevator', slot: direct ? index : -1, alpha: direct ? 1 : 0, gone: false, moving: false, phase: Math.random() * 6, face: direct ? slotFace(room, index) : 1 }
-      sprites.set(actor.id, sprite)
+      sprite = { id: key, session: office.sessionId, x: spawn[0], y: spawn[1], path: [], room: direct ? room : 'elevator', slot: direct ? index : -1, alpha: placeDirect ? 1 : 0, gone: false, moving: false, phase: Math.random() * 6, face: direct ? slotFace(room, index) : 1 }
+      sprites.set(key, sprite)
     }
     sprite.data = actor
+    sprite.color = colorOf(office)
+    sprite.title = office.title
+    sprite.tag = tagOf(office, actor)
     sprite.gone = false
     if (sprite.room !== room || sprite.slot !== index) {
       sprite.path = reroute(sprite, room, target)
@@ -1894,12 +1941,12 @@ function paintBack(room, t, busy) {
 
 function drawPerson(sprite, t, ghost = false) {
   const actor = sprite.data
-  const style = styleFor(actor)
+  const style = styleFor(actor, sprite.color)
   const [sx, sy] = project(sprite.x, sprite.y)
   const swing = sprite.moving ? Math.sin(t * 12 + sprite.phase) : 0
   const bob = sprite.moving ? Math.abs(swing) * 1.6 : Math.sin(t * 2 + sprite.phase) * 0.4
   const pump = actor.status === 'working' && !sprite.moving ? Math.sin(t * 10 + sprite.phase) : swing
-  const cap = style.cap ?? style.body
+  const chosen = sprite.session === focusId()
   ctx.save()
   ctx.globalAlpha = Math.max(0, Math.min(1, sprite.alpha)) * (ghost ? GHOST : 1)
   ctx.translate(sx, sy)
@@ -1907,10 +1954,15 @@ function drawPerson(sprite, t, ghost = false) {
   ctx.beginPath()
   ctx.ellipse(0, 0, 11, 4.5, 0, 0, Math.PI * 2)
   ctx.fill()
+  ctx.strokeStyle = sprite.color
+  ctx.lineWidth = chosen ? 2.6 : 1.4
+  ctx.beginPath()
+  ctx.ellipse(0, 0, chosen ? 14 : 12.5, chosen ? 6 : 5.2, 0, 0, Math.PI * 2)
+  ctx.stroke()
+  if (!actor.main) ctx.scale(SERVANT_SCALE, SERVANT_SCALE)
   ctx.scale(sprite.face || 1, 1)
   ctx.translate(0, -bob)
-  if (style.gear === 'crown') poly([[-8, -30], [8, -30], [13, -5], [-13, -5]], shade('#b8463a', 1))
-  if (style.gear === 'hood') poly([[-9, -32], [9, -32], [11, -9], [-11, -9]], shade(cap, 0.8))
+  if (style.gear === 'crown') poly([[-8, -30], [8, -30], [13, -5], [-13, -5]], style.cape)
   ctx.fillStyle = '#3b3f4c'
   rr(-6 + swing * 2.5, -13, 5, 13, 2)
   ctx.fill()
@@ -1920,6 +1972,10 @@ function drawPerson(sprite, t, ghost = false) {
   box(-9, -28, 18, 17, style.body, null, 6)
   ctx.fillStyle = shade(style.body, 0.62)
   ctx.fillRect(-9, -16, 18, 2.5)
+  if (style.apron) {
+    box(-6.5, -24.5, 13, 14, APRON, null, 3)
+    box(-4.5, -28, 9, 5, APRON, null, 1.5)
+  }
   box(7.5, -27 + pump * 2, 5, 12, shade(style.body, 0.9), null, 2.5)
   circle(10, -15 + pump * 2, 2.6, '#f6d7b8')
   if (actor.main) {
@@ -1941,18 +1997,7 @@ function drawPerson(sprite, t, ghost = false) {
   circle(6.5, -38, 1.5, '#272b33')
   circle(-1.5, -34.5, 1.6, 'rgba(240, 130, 120, 0.45)')
   circle(9, -34.5, 1.6, 'rgba(240, 130, 120, 0.45)')
-  if (style.glasses) {
-    ctx.strokeStyle = '#272b33'
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.arc(1, -38, 2.8, 0, Math.PI * 2)
-    ctx.moveTo(9.3, -38)
-    ctx.arc(6.5, -38, 2.8, 0, Math.PI * 2)
-    ctx.moveTo(3.8, -38)
-    ctx.lineTo(3.7, -38)
-    ctx.stroke()
-  }
-  drawGear(style.gear, cap, t)
+  drawGear(style.gear, style.cap)
   if (actor.status === 'resting') {
     ctx.font = `700 9px ${FONT}`
     ctx.fillStyle = 'rgba(90, 100, 120, 0.8)'
@@ -1963,68 +2008,18 @@ function drawPerson(sprite, t, ghost = false) {
   ctx.restore()
 }
 
-function drawGear(gear, cap, t) {
-  switch (gear) {
-    case 'crown':
-      poly([[-8, -50], [-8, -57], [-4, -53], [0, -59], [4, -53], [8, -57], [8, -50]], '#f2c94c', '#c79a2a')
-      circle(0, -53.5, 1.4, '#d64545')
-      break
-    case 'hood':
-      ctx.fillStyle = cap
-      ctx.beginPath()
-      ctx.arc(0, -40, 13.5, Math.PI * 0.92, Math.PI * 0.08)
-      ctx.lineTo(10, -33)
-      ctx.lineTo(13, -36)
-      ctx.arc(0, -40, 13.5, Math.PI * 0.08, Math.PI * 0.92, true)
-      ctx.fill()
-      ctx.beginPath()
-      ctx.arc(0, -41, 13.5, Math.PI, 0)
-      ctx.lineTo(9, -44)
-      ctx.quadraticCurveTo(2, -50, -6, -45)
-      ctx.lineTo(-12, -38)
-      ctx.closePath()
-      ctx.fill()
-      break
-    case 'wizard':
-      ctx.fillStyle = cap
-      ctx.beginPath()
-      ctx.ellipse(0, -48, 16, 4.5, 0, 0, Math.PI * 2)
-      ctx.fill()
-      poly([[-10, -49], [10, -49], [5 + Math.sin(t * 2) * 1.5, -74]], cap)
-      circle(1, -60, 1.8, '#f2c94c')
-      break
-    case 'helm':
-      ctx.fillStyle = '#b8c0cc'
-      ctx.beginPath()
-      ctx.arc(0, -42, 13, Math.PI, 0)
-      ctx.lineTo(13, -40)
-      ctx.lineTo(-13, -40)
-      ctx.closePath()
-      ctx.fill()
-      ctx.fillStyle = '#8f98a6'
-      ctx.fillRect(2, -42, 2.4, 9)
-      poly([[-3, -54], [3, -54], [-1, -62], [-7, -60]], '#d64545')
-      break
-    case 'scholar':
-      poly([[-14, -51], [0, -56], [14, -51], [0, -46]], cap)
-      ctx.fillStyle = cap
-      ctx.fillRect(-8, -50, 16, 5)
-      line([10, -51], [12, -42], '#f2c94c', 1.2)
-      break
-    case 'feather':
-      ctx.fillStyle = cap
-      ctx.beginPath()
-      ctx.arc(0, -42, 12.5, Math.PI, 0)
-      ctx.closePath()
-      ctx.fill()
-      ctx.fillRect(4, -44, 13, 3)
-      ctx.fillStyle = '#f2c94c'
-      ctx.beginPath()
-      ctx.ellipse(-8, -55, 3, 9, -0.6 + Math.sin(t * 3) * 0.08, 0, Math.PI * 2)
-      ctx.fill()
-      break
-    default:
-      break
+function drawGear(gear, cap) {
+  if (gear === 'crown') {
+    poly([[-8, -50], [-8, -57], [-4, -53], [0, -59], [4, -53], [8, -57], [8, -50]], '#f2c94c', '#c79a2a')
+    circle(0, -53.5, 1.4, '#d64545')
+    return
+  }
+  if (gear === 'servant') {
+    ctx.fillStyle = cap
+    ctx.beginPath()
+    ctx.ellipse(0, -47, 11.5, 7.5, 0, Math.PI, 0)
+    ctx.fill()
+    box(-12.5, -48.5, 25, 4, APRON, null, 2)
   }
 }
 
@@ -2060,28 +2055,34 @@ function activityFor(actor, t) {
 
 function cardOf(sprite, cam, now, t) {
   const actor = sprite.data
+  const mine = sprite.session === focusId()
   const compact = cam.width < COMPACT_W
-  const brief = compact && !actor.main
+  const brief = !mine || (compact && !actor.main)
   const pad = 6
+  if (PHONE) {
+    const tag = sprite.tag || '#'
+    ctx.font = `700 ${compact ? 10 : 11}px ${FONT}`
+    return { sprite, actor, compact, brief: true, name: tag, status: '', elapsed: '', doing: '', foot: '', cw: Math.ceil(10 + ctx.measureText(tag).width + pad * 2), ch: 20, speech: null, pad }
+  }
   const maxW = compact ? 150 : 212
   const status = STATUS_LABELS[actor.status] ?? actor.status
   ctx.font = `700 ${compact ? 10 : 11}px ${FONT}`
-  const name = clipText(actor.name, compact ? 64 : 96)
+  const name = clipText(actor.main ? sprite.title || actor.name : actor.name, compact ? 64 : 96)
   const nameW = ctx.measureText(name).width
   ctx.font = `700 9px ${FONT}`
   const pillW = ctx.measureText(status).width + 10
   ctx.font = `500 ${compact ? 9.5 : 10}px ${FONT}`
-  const elapsed = compact ? '' : span(now - actor.since)
+  const elapsed = compact || brief ? '' : span(now - actor.since)
   const elapsedW = elapsed ? ctx.measureText(elapsed).width + 6 : 0
   const head = 10 + nameW + 6 + pillW + elapsedW
   const doing = activityFor(actor, t)
   const doingW = brief ? 0 : Math.min(ctx.measureText(doing).width, maxW - pad * 2)
-  const foot = compact ? '' : `🔧 도구 ${actor.tools ?? 0}회`
+  const foot = compact || brief ? '' : `🔧 도구 ${actor.tools ?? 0}회`
   const footW = foot ? ctx.measureText(foot).width + (ACTIVE.has(actor.status) ? 48 : 0) : 0
   const w = Math.ceil(Math.min(maxW, Math.max(brief ? 0 : compact ? 84 : 120, head, doingW, footW) + pad * 2))
   const h = brief ? 20 : compact ? 32 : 46
   let speech = null
-  const found = speechFor(actor, now)
+  const found = mine ? speechFor(actor, now) : null
   if (found) {
     const [tone, text, lines] = found
     ctx.font = `600 ${compact ? 10 : 11}px ${FONT}`
@@ -2142,8 +2143,9 @@ function plateLayout(cam) {
 }
 
 function cardLayout(cam, now, t) {
-  const list = [...sprites.values()].filter(sprite => sprite.data && sprite.alpha > 0.05)
-    .sort((p, q) => Number(Boolean(q.data.main)) - Number(Boolean(p.data.main)) || q.x + q.y - (p.x + p.y))
+  const focus = focusId()
+  const list = [...sprites.values()].filter(sprite => sprite.data && sprite.alpha > 0.05 && (sprite.data.main || sprite.session === focus))
+    .sort((p, q) => Number(q.session === focus) - Number(p.session === focus) || Number(Boolean(q.data.main)) - Number(Boolean(p.data.main)) || q.x + q.y - (p.x + p.y))
   const cards = list.map(sprite => cardOf(sprite, cam, now, t))
   const items = cards.map(card => {
     const [ax, ay] = toScreen(cam, card.sprite.x, card.sprite.y, BODY_H + 12)
@@ -2186,7 +2188,7 @@ function drawCard(card, t) {
   const { actor, compact, pad } = card
   const w = card.cw
   const x = card.x + (card.w - w) / 2
-  const style = styleFor(actor)
+  const style = styleFor(actor, card.sprite.color)
   ctx.save()
   ctx.globalAlpha = Math.max(0, Math.min(1, card.sprite.alpha))
   if (card.moved) {
@@ -2230,10 +2232,12 @@ function drawCard(card, t) {
   ctx.font = `700 9px ${FONT}`
   const pillW = ctx.measureText(card.status).width + 10
   const pillX = x + pad + 10 + (() => { ctx.font = `700 ${compact ? 10 : 11}px ${FONT}`; return ctx.measureText(card.name).width })() + 6
-  box(pillX, row1 - 6.5, pillW, 13, pillBg, null, 6.5)
-  ctx.font = `700 9px ${FONT}`
-  ctx.fillStyle = pillFg
-  ctx.fillText(card.status, pillX + 5, row1 + 0.5)
+  if (card.status) {
+    box(pillX, row1 - 6.5, pillW, 13, pillBg, null, 6.5)
+    ctx.font = `700 9px ${FONT}`
+    ctx.fillStyle = pillFg
+    ctx.fillText(card.status, pillX + 5, row1 + 0.5)
+  }
   ctx.font = `500 ${compact ? 9.5 : 10}px ${FONT}`
   if (card.elapsed) {
     ctx.fillStyle = '#8a8f9a'
@@ -2444,6 +2448,7 @@ function draw(t) {
   const now = serverNow()
   for (const plate of plateLayout(view)) drawPlate(plate)
   const cards = cardLayout(view, now, t)
+  lastCards = cards
   for (let i = cards.length - 1; i >= 0; i--) drawCard(cards[i], t)
   if (hover) drawTip(hover)
 }
@@ -2470,67 +2475,128 @@ function layout() {
   view = camera(plan, rect.width, rect.height, dpr)
 }
 
+function personAt(px, py) {
+  for (const card of lastCards) {
+    if (!card.sprite.gone && px >= card.x && px <= card.x + card.w && py >= card.y && py <= card.y + card.h) return card.sprite
+  }
+  let best = null
+  for (const sprite of sprites.values()) {
+    if (!sprite.data || sprite.gone || sprite.alpha < 0.3) continue
+    const [fx, fy] = toScreen(view, sprite.x, sprite.y)
+    const [, hy] = toScreen(view, sprite.x, sprite.y, BODY_H + 8)
+    const half = 13 * view.scale
+    if (px < fx - half || px > fx + half || py < hy || py > fy + 5 * view.scale) continue
+    if (!best || sprite.x + sprite.y > best.x + best.y) best = sprite
+  }
+  return best
+}
+
 function hoverAt(event) {
   const rect = ui.canvas.getBoundingClientRect()
   pointer = { x: event.clientX - rect.left, y: event.clientY - rect.top }
   hover = pickPlot(pointer.x, pointer.y)
+  ui.canvas.style.cursor = event.pointerType === 'mouse' && personAt(pointer.x, pointer.y) ? 'pointer' : ''
+}
+
+function choose(session) {
+  if (!session) return
+  selected = session
+  follow = false
+  ui.follow.checked = false
+  listSig = ''
+  if (state) render(state)
+  pollNow()
 }
 
 function renderHeader(office, now) {
-  ui.floorBadge.textContent = office ? `${office.floor}F` : '-'
-  ui.floorName.textContent = office ? office.floorName : '세션 없음'
-  ui.sessionTitle.textContent = office ? office.title : ''
+  ui.sessionChip.style.background = office ? colorOf(office) : ''
+  ui.sessionChip.textContent = office ? (PHONE ? `#${colorSlot(office) + 1}` : '✳') : '-'
+  ui.sessionTitle.textContent = office ? office.title : '세션 없음'
+  ui.groupName.textContent = office ? office.group : ''
   ui.live.textContent = office ? (office.live ? '● LIVE' : `● ${ago(office.last, now)} 활동`) : '● 대기'
   ui.live.classList.toggle('on', Boolean(office && office.live))
   ui.projectPath.textContent = office ? office.path : '-'
   ui.projectPath.title = office ? office.path : ''
   ui.sessionId.textContent = office ? office.sessionId : '-'
   ui.empty.hidden = Boolean(office)
-  document.title = office ? `${office.floor}F ${office.floorName} · Claude 사무실` : 'Claude 사무실'
+  document.title = office ? `${office.title} · Claude 사무실` : 'Claude 사무실'
 }
 
-function renderFloors(data, now) {
-  const office = data.office
-  const open = expanded === null ? office?.floorId ?? '' : expanded
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
+const LIMITS_STALE_S = 600
+let limitsSig = ''
+
+function clockOf(epoch, withDay) {
+  const date = new Date(epoch * 1000)
+  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  return withDay ? `${WEEKDAYS[date.getDay()]} ${time}` : time
+}
+
+function leftOf(window) {
+  return Math.round(100 - window.used)
+}
+
+function renderLimits(limits, now) {
+  const windows = [['주간', limits?.seven_day], ['5시간', limits?.five_hour]].filter(([, window]) => window)
+  const sig = JSON.stringify([limits, Math.floor(now / 60)])
+  if (sig === limitsSig) return
+  limitsSig = sig
+  ui.limits.hidden = windows.length === 0
+  if (!windows.length) return ui.limits.replaceChildren()
+  const live = windows.filter(([, window]) => window.resets > now)
+  const least = Math.min(...live.map(([, window]) => leftOf(window)))
+  ui.limits.classList.toggle('low', least < 20)
+  ui.limits.classList.toggle('out', least < 5)
+  const say = ([name, window]) => window.resets > now ? `${name} ${leftOf(window)}% 남음` : `${name} 초기화됨`
+  const [lead, ...rest] = windows
+  const main = el('div', 'limit-main', '')
+  main.append(el('b', '', say(lead)))
+  if (lead[1].resets > now) {
+    const meter = el('span', 'meter')
+    const fill = el('i')
+    fill.style.width = `${leftOf(lead[1])}%`
+    meter.append(fill)
+    main.append(meter)
+  }
+  const notes = [
+    lead[1].resets > now ? `${lead[0]} 초기화 ${clockOf(lead[1].resets, lead[0] === '주간')}` : '',
+    ...rest.map(item => item[1].resets > now ? `${say(item)}(${clockOf(item[1].resets, false)})` : say(item)),
+    now - limits.at > LIMITS_STALE_S ? `${clockOf(limits.at, now - limits.at > 86400)} 기준` : '',
+  ].filter(Boolean)
+  ui.limits.replaceChildren(main, el('small', '', notes.join(' · ')))
+}
+
+function asleep(office) {
+  return office.actors[0]?.status === 'sleeping'
+}
+
+function awakeServants(office) {
+  return office.actors.slice(1).filter(actor => actor.status !== 'sleeping').length
+}
+
+function renderSessions(data, now) {
+  const chosen = chosenId(data)
   const sig = JSON.stringify([
-    data.floors.map(f => [f.id, f.floor, f.name, f.count, f.active, ago(f.last, now), f.sessions.map(s => [s.id, s.title, s.active, ago(s.last, now)])]),
-    office?.sessionId, open,
+    data.offices.map(o => [o.sessionId, o.title, o.group, o.color, o.active, ago(o.last, now), awakeServants(o), asleep(o)]),
+    chosen,
   ])
-  if (sig === floorSig) return
-  floorSig = sig
-  ui.floorList.replaceChildren(...data.floors.map(floor => {
-    const node = el('div', `floor${floor.id === office?.floorId ? ' current' : ''}${floor.active ? ' active' : ''}`)
-    const row = el('button', 'floor-row')
-    row.type = 'button'
-    row.title = floor.path
-    const meta = el('div', 'floor-meta')
-    meta.append(el('b', '', floor.name), el('small', '', `세션 ${floor.count}개 · ${floor.active ? '지금 활동 중' : ago(floor.last, now)}`))
-    row.append(el('span', 'floor-num', `${floor.floor}F`), meta, el('span', `dot${floor.active ? ' on' : ''}`))
-    row.addEventListener('click', () => {
-      expanded = open === floor.id ? '' : floor.id
-      floorSig = ''
-      renderFloors(state, serverNow())
-    })
-    node.append(row)
-    if (open === floor.id) {
-      const list = el('div', 'session-list')
-      for (const session of floor.sessions) {
-        const item = el('button', `session${session.id === office?.sessionId ? ' selected' : ''}`)
-        item.type = 'button'
-        item.title = session.title
-        item.append(el('span', '', session.title), el('span', session.active ? 'now' : '', session.active ? '지금 활동 중' : ago(session.last, now)))
-        item.addEventListener('click', () => {
-          selected = session.id
-          follow = false
-          ui.follow.checked = false
-          floorSig = ''
-          pollNow()
-        })
-        list.append(item)
-      }
-      node.append(list)
-    }
-    return node
+  if (sig === listSig) return
+  listSig = sig
+  ui.sessionList.replaceChildren(...data.offices.map(office => {
+    const item = el('button', `session${office.sessionId === chosen ? ' selected' : ''}${asleep(office) ? ' asleep' : ''}`)
+    item.type = 'button'
+    item.title = `${office.title} · ${office.group}`
+    item.dataset.session = office.sessionId
+    const chip = el('span', 'chip', PHONE ? `#${colorSlot(office) + 1}` : '✳')
+    chip.style.background = colorOf(office)
+    const meta = el('span', 'session-meta')
+    const servants = awakeServants(office)
+    const parts = asleep(office) ? [office.group, '🌙 자는 중']
+      : [office.group, servants > 0 ? `시종 ${servants}` : '', office.active ? '지금 활동 중' : ago(office.last, now)]
+    meta.append(el('b', '', office.title), el('small', office.active ? 'now' : '', parts.filter(Boolean).join(' · ')))
+    item.append(chip, meta, el('span', `dot${office.active ? ' on' : ''}`))
+    item.addEventListener('click', () => choose(office.sessionId))
+    return item
   }))
 }
 
@@ -2542,21 +2608,24 @@ function personDetail(actor, now) {
     case 'received': return `📨 ${actor.detail || '요청 받음'}`
     case 'leaving': return '🌀 귀환합니다!'
     case 'resting': return '💤 30분 넘게 조용함'
+    case 'sleeping': return '🌙 주점에서 3시간 넘게 쉬어 마을에서 빠짐'
     default: return actor.main ? '⌨️ 입력 기다리는 중' : '📝 보고 정리 중'
   }
 }
 
 function renderPeople(office, now) {
   const actors = office ? office.actors : []
-  ui.headcount.textContent = `${actors.length}명 활동 중`
+  const color = office ? colorOf(office) : SESSION_COLORS[0]
+  const sleeping = actors.filter(actor => actor.status === 'sleeping').length
+  const awake = actors.length - sleeping
+  ui.headcount.textContent = [awake ? `${awake}명 활동 중` : '', sleeping ? `${sleeping}명 자는 중` : ''].filter(Boolean).join(' · ') || '0명 활동 중'
   ui.people.replaceChildren(...actors.map(actor => {
-    const style = styleFor(actor)
     const node = el('div', 'person')
     const avatar = el('div', 'avatar', actor.main ? '✳' : (actor.kind || '?')[0].toUpperCase())
-    avatar.style.background = style.body
+    avatar.style.background = color
     const body = el('div', 'person-body')
     const top = el('div', 'person-top')
-    top.append(el('b', '', actor.name), el('small', '', actor.main ? modelName(actor.model) : actor.kind), el('span', `pill ${actor.status}`, STATUS_LABELS[actor.status] ?? actor.status))
+    top.append(el('b', '', PHONE ? `${tagOf(office, actor)} ${actor.name}` : actor.name), el('small', '', actor.main ? modelName(actor.model) : `시종 · ${actor.kind || '에이전트'}`), el('span', `pill ${actor.status}`, STATUS_LABELS[actor.status] ?? actor.status))
     body.append(top, el('div', 'person-detail', personDetail(actor, now)), el('div', 'person-foot', `도구 ${actor.tools}회 · ${span(now - actor.since)}`))
     node.append(avatar, body)
     return node
@@ -2578,7 +2647,9 @@ function renderLog(office) {
 }
 
 function renderLegend() {
-  ui.legend.replaceChildren(...Object.values(ROOMS).map(room => {
+  const colors = el('div', 'legend-wide')
+  colors.append(el('b', '', '👑 옷 색 = 세션'), el('span', '', '왕관 쓴 Claude와 앞치마 두른 시종(서브에이전트)은 옷 색이 같으면 한 세션입니다 · 사람을 누르면 그 세션을 봅니다'))
+  ui.legend.replaceChildren(colors, ...Object.values(ROOMS).map(room => {
     const node = el('div')
     node.append(el('b', '', `${room.icon} ${room.label}`), el('span', '', room.note))
     return node
@@ -2587,12 +2658,14 @@ function renderLegend() {
 
 function render(data) {
   const now = serverNow()
-  ui.empty.textContent = data.notice || '표시할 세션이 없습니다'
-  renderHeader(data.office, now)
-  renderFloors(data, now)
-  renderPeople(data.office, now)
-  renderLog(data.office)
-  syncActors(data.office)
+  numberServants(data.offices)
+  const office = officeOf(data)
+  renderHeader(office, now)
+  renderSessions(data, now)
+  renderPeople(office, now)
+  renderLog(office)
+  renderLimits(data.limits, now)
+  syncActors(data.offices)
 }
 
 function schedule(ms) {
@@ -2607,6 +2680,16 @@ function pollNow() {
   poll()
 }
 
+function adopt(data) {
+  if (!follow && data.follow) {
+    follow = true
+    selected = null
+    ui.follow.checked = true
+  }
+  state = data
+  render(data)
+}
+
 async function poll() {
   if (inflight) return
   inflight = true
@@ -2619,24 +2702,16 @@ async function poll() {
       return
     }
     clockOffset = data.now - Date.now() / 1000
-    if (!follow && data.follow) {
-      follow = true
-      selected = null
-      ui.follow.checked = true
-    }
-    state = data
-    render(data)
+    adopt(data)
     ui.error.hidden = true
   } catch (error) {
     if (asked !== generation) {
       delay = 0
       return
     }
-    if (error.view) {
-      state = error.view
-      render(error.view)
-    }
-    if (state?.office?.live) renderHeader({ ...state.office, live: false }, serverNow())
+    if (error.view) adopt(error.view)
+    const shown = officeOf(state)
+    if (shown?.live) renderHeader({ ...shown, live: false }, serverNow())
     ui.error.textContent = error.userMessage ?? `서버에 연결할 수 없습니다 (${error.message}) · 다시 시도 중`
     ui.error.hidden = false
     delay = error.retryMs ?? source.retry
@@ -2648,14 +2723,15 @@ async function poll() {
 
 ui.follow.addEventListener('change', () => {
   follow = ui.follow.checked
-  if (follow) {
-    selected = null
-    expanded = null
-  } else {
-    selected = state?.office?.sessionId ?? null
-  }
-  floorSig = ''
+  selected = follow ? null : chosenId(state)
+  listSig = ''
+  if (state) render(state)
   pollNow()
+})
+
+ui.canvas.addEventListener('click', event => {
+  const rect = ui.canvas.getBoundingClientRect()
+  choose(personAt(event.clientX - rect.left, event.clientY - rect.top)?.session)
 })
 
 document.addEventListener('visibilitychange', () => {

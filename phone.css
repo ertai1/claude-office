@@ -27,15 +27,26 @@ body.phone {
   padding: 6px 12px 6px 6px;
 }
 
-.phone .floor-name {
+.phone .head-title {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.phone .session-title { max-width: none; }
+.phone .head-title,
+.phone .head-sub { max-width: none; }
 
 .phone .head-actions { gap: 6px; }
+
+.phone .phone-head { flex-wrap: wrap; row-gap: 6px; }
+
+.phone .limits {
+  flex: 1 1 100%;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+}
 
 .phone .relay-button { padding: 7px 12px; }
 
@@ -103,7 +114,7 @@ body.phone {
 }
 
 .phone #tabLog:checked ~ .tab-bar .tab-log,
-.phone #tabFloors:checked ~ .tab-bar .tab-floors,
+.phone #tabSessions:checked ~ .tab-bar .tab-sessions,
 .phone #tabLegend:checked ~ .tab-bar .tab-legend {
   background: var(--card);
   color: var(--text);
@@ -111,7 +122,7 @@ body.phone {
 }
 
 .phone #tabLog:focus-visible ~ .tab-bar .tab-log,
-.phone #tabFloors:focus-visible ~ .tab-bar .tab-floors,
+.phone #tabSessions:focus-visible ~ .tab-bar .tab-sessions,
 .phone #tabLegend:focus-visible ~ .tab-bar .tab-legend {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
@@ -120,7 +131,7 @@ body.phone {
 .phone .tab-panel { display: none; }
 
 .phone #tabLog:checked ~ .panel-log,
-.phone #tabFloors:checked ~ .panel-floors,
+.phone #tabSessions:checked ~ .panel-sessions,
 .phone #tabLegend:checked ~ .panel-legend {
   display: block;
 }
@@ -169,16 +180,12 @@ body.phone {
 
 .phone .follow { padding: 2px 4px 10px; font-size: 13px; }
 
-.phone .floor-list {
+.phone .session-list {
   max-height: none;
   overflow: visible;
 }
 
-.phone .floor-row { padding: 11px 10px; }
-
-.phone .session { padding: 9px 8px; font-size: 13px; }
-
-.phone .session-list { max-height: none; }
+.phone .session { padding: 10px; }
 
 .phone .info-card {
   margin-top: 12px;
@@ -219,7 +226,7 @@ body.phone {
 
   .phone .title-box { padding: 3px 12px 3px 3px; }
 
-  .phone .floor-badge { padding: 4px 8px; }
+  .phone .session-chip { padding: 4px 8px; }
 
   .phone .stage {
     grid-area: stage;
