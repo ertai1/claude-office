@@ -59,6 +59,17 @@ const STATIONS = {
 const SESSION_COLORS = ['#d64545', '#3b6fd8', '#e0a91f', '#8a4fd0', '#1f9e8f', '#ec7a28', '#e0559a', '#4a5262']
 const SERVANT_SCALE = 0.84
 const APRON = '#fbf6e9'
+const WIZARD_HAT = '#3d4ba3'
+const BARD_HAT = '#a23b5a'
+const NINJA_HOOD = '#2f3445'
+const CHARACTERS = {
+  opus: { name: '왕', gear: 'crown' },
+  sonnet: { name: '음유시인', gear: 'bard' },
+  haiku: { name: '닌자', gear: 'ninja' },
+  fable: { name: '마법사', gear: 'wizard' },
+}
+const SERVANT = { name: '시종', gear: 'servant' }
+const FIXED_WHO = new Set(['사용자', '알림'])
 const STATUS_LABELS = { working: '작업 중', thinking: '고민 중', talking: '말하는 중', received: '요청 받음', waiting: '대기', leaving: '귀환 중', resting: '쉬는 중', sleeping: '자는 중' }
 const STATUS_TONES = {
   working: ['#e6f0ff', '#2f62c9'], thinking: ['#f0ebff', '#6b4fd0'], talking: ['#fff1e6', '#b8642f'], received: ['#e6f0ff', '#2f62c9'],
@@ -207,9 +218,15 @@ function tagOf(office, actor) {
   return actor.main ? base : `${base}-${servantNumbers.get(`${office.sessionId}/${actor.id}`) ?? '?'}`
 }
 
+function characterOf(actor) {
+  const family = /opus|sonnet|haiku|fable/i.exec(actor.model || '')
+  return family ? CHARACTERS[family[0].toLowerCase()] : actor.main ? CHARACTERS.opus : SERVANT
+}
+
 function styleFor(actor, color) {
-  if (actor.main) return { body: color, cape: shade(color, 0.62), hair: '#4a3426', gear: 'crown' }
-  return { body: color, cap: color, hair: '#3a2b20', gear: 'servant', apron: true }
+  const gear = characterOf(actor).gear
+  if (actor.main) return { body: color, cape: shade(color, 0.62), hair: '#4a3426', gear }
+  return { body: color, cap: color, hair: '#3a2b20', gear, apron: true }
 }
 
 function chosenId(data) {
@@ -1962,7 +1979,7 @@ function drawPerson(sprite, t, ghost = false) {
   if (!actor.main) ctx.scale(SERVANT_SCALE, SERVANT_SCALE)
   ctx.scale(sprite.face || 1, 1)
   ctx.translate(0, -bob)
-  if (style.gear === 'crown') poly([[-8, -30], [8, -30], [13, -5], [-13, -5]], style.cape)
+  if (style.cape) poly([[-8, -30], [8, -30], [13, -5], [-13, -5]], style.cape)
   ctx.fillStyle = '#3b3f4c'
   rr(-6 + swing * 2.5, -13, 5, 13, 2)
   ctx.fill()
@@ -1977,6 +1994,7 @@ function drawPerson(sprite, t, ghost = false) {
     box(-4.5, -28, 9, 5, APRON, null, 1.5)
   }
   box(7.5, -27 + pump * 2, 5, 12, shade(style.body, 0.9), null, 2.5)
+  drawProp(style.gear, pump)
   circle(10, -15 + pump * 2, 2.6, '#f6d7b8')
   if (actor.main) {
     ctx.font = `800 9px ${FONT}`
@@ -2008,10 +2026,75 @@ function drawPerson(sprite, t, ghost = false) {
   ctx.restore()
 }
 
+function drawProp(gear, pump) {
+  if (gear === 'wizard') {
+    line([11, -3 + pump * 2], [11, -55 + pump * 2], '#7a5230', 2.4)
+    circle(11, -57.5 + pump * 2, 3.4, '#9be7ff', '#4aa8d8')
+    return
+  }
+  if (gear === 'bard') {
+    line([4, -20], [15, -33], '#7a4e22', 2.2)
+    ctx.save()
+    ctx.translate(2, -18)
+    ctx.rotate(-0.6)
+    ctx.fillStyle = '#d19a4a'
+    ctx.strokeStyle = '#8a5a22'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.ellipse(0, 0, 6.5, 5, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+    ctx.restore()
+    circle(2, -18, 1.6, '#4a2f14')
+  }
+}
+
 function drawGear(gear, cap) {
   if (gear === 'crown') {
     poly([[-8, -50], [-8, -57], [-4, -53], [0, -59], [4, -53], [8, -57], [8, -50]], '#f2c94c', '#c79a2a')
     circle(0, -53.5, 1.4, '#d64545')
+    return
+  }
+  if (gear === 'wizard') {
+    ctx.fillStyle = WIZARD_HAT
+    ctx.beginPath()
+    ctx.ellipse(0, -47, 14, 3.6, 0, 0, Math.PI * 2)
+    ctx.fill()
+    poly([[-9, -47.5], [9, -47.5], [-3, -65]], WIZARD_HAT)
+    ctx.font = `800 7px ${FONT}`
+    ctx.fillStyle = '#f2c94c'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'alphabetic'
+    ctx.fillText('★', -0.5, -51)
+    return
+  }
+  if (gear === 'bard') {
+    ctx.fillStyle = '#f4f1e6'
+    ctx.strokeStyle = '#cbb98f'
+    ctx.lineWidth = 0.8
+    ctx.beginPath()
+    ctx.ellipse(-9, -56, 2.2, 7.5, -0.7, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+    ctx.fillStyle = BARD_HAT
+    ctx.beginPath()
+    ctx.ellipse(2, -49.5, 12.5, 4.6, -0.15, 0, Math.PI * 2)
+    ctx.fill()
+    circle(3, -53, 1.6, BARD_HAT)
+    return
+  }
+  if (gear === 'ninja') {
+    ctx.save()
+    ctx.beginPath()
+    ctx.arc(0, -39, 12.6, 0, Math.PI * 2)
+    ctx.clip()
+    ctx.fillStyle = NINJA_HOOD
+    ctx.fillRect(-14, -54, 28, 13)
+    ctx.fillRect(-14, -35.5, 28, 10)
+    ctx.restore()
+    box(-12.6, -45.5, 25.2, 2.6, cap, null, 1.2)
+    poly([[-11, -45], [-20, -49], [-19, -43]], cap)
+    poly([[-11, -44], [-18, -39], [-15, -37.5]], cap)
     return
   }
   if (gear === 'servant') {
@@ -2625,31 +2708,39 @@ function renderPeople(office, now) {
     avatar.style.background = color
     const body = el('div', 'person-body')
     const top = el('div', 'person-top')
-    top.append(el('b', '', PHONE ? `${tagOf(office, actor)} ${actor.name}` : actor.name), el('small', '', actor.main ? modelName(actor.model) : `시종 · ${actor.kind || '에이전트'}`), el('span', `pill ${actor.status}`, STATUS_LABELS[actor.status] ?? actor.status))
+    top.append(el('b', '', PHONE ? `${tagOf(office, actor)} ${actor.name}` : actor.name), el('small', '', [characterOf(actor).name, modelName(actor.model), actor.main ? '' : actor.kind || '에이전트'].filter(Boolean).join(' · ')), el('span', `pill ${actor.status}`, STATUS_LABELS[actor.status] ?? actor.status))
     body.append(top, el('div', 'person-detail', personDetail(actor, now)), el('div', 'person-foot', `도구 ${actor.tools}회 · ${span(now - actor.since)}`))
     node.append(avatar, body)
     return node
   }))
 }
 
+function subjectOf(office, entry) {
+  const actor = FIXED_WHO.has(entry.who) ? null : office.actors.find(item => item.id === entry.actor)
+  return actor ? `${tagOf(office, actor)} ${characterOf(actor).name}` : entry.who
+}
+
 function renderLog(office) {
   const entries = office ? office.log : []
-  const sig = office ? `${office.sessionId}|${entries.map(entry => entry.id).join(',')}` : ''
+  const subjects = entries.map(entry => subjectOf(office, entry))
+  const sig = office ? `${office.sessionId}|${entries.map(entry => entry.id).join(',')}|${subjects.join(',')}` : ''
   if (sig === logSig) return
   logSig = sig
   ui.logCount.textContent = entries.length ? `최근 ${entries.length}건` : ''
-  ui.log.replaceChildren(...entries.map(entry => {
+  ui.log.replaceChildren(...entries.map((entry, index) => {
     const node = el('div', `entry kind-${entry.kind}`)
     const icon = entry.kind === 'tool' ? ROOMS[roomOf(entry.room)].icon : LOG_ICONS[entry.kind] ?? '•'
-    node.append(el('time', '', clock(entry.t)), el('b', '', entry.who), el('span', '', `${icon} ${entry.text}`))
+    node.append(el('time', '', clock(entry.t)), el('b', '', subjects[index]), el('span', '', `${icon} ${entry.text}`))
     return node
   }))
 }
 
 function renderLegend() {
   const colors = el('div', 'legend-wide')
-  colors.append(el('b', '', '👑 옷 색 = 세션'), el('span', '', '왕관 쓴 Claude와 앞치마 두른 시종(서브에이전트)은 옷 색이 같으면 한 세션입니다 · 사람을 누르면 그 세션을 봅니다'))
-  ui.legend.replaceChildren(colors, ...Object.values(ROOMS).map(room => {
+  colors.append(el('b', '', '👑 옷 색 = 세션'), el('span', '', '망토 두른 Claude와 앞치마 두른 시종(서브에이전트)은 옷 색이 같으면 한 세션입니다 · 사람을 누르면 그 세션을 봅니다'))
+  const models = el('div', 'legend-wide')
+  models.append(el('b', '', '🎩 모자 = 모델'), el('span', '', '왕관 왕(Opus) · 깃털 모자와 류트 음유시인(Sonnet) · 두건 닌자(Haiku) · 별 모자와 지팡이 마법사(Fable)'))
+  ui.legend.replaceChildren(colors, models, ...Object.values(ROOMS).map(room => {
     const node = el('div')
     node.append(el('b', '', `${room.icon} ${room.label}`), el('span', '', room.note))
     return node
