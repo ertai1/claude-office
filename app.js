@@ -225,7 +225,7 @@ function characterOf(actor) {
 
 function styleFor(actor, color) {
   const gear = characterOf(actor).gear
-  if (actor.main) return { body: color, cape: shade(color, 0.62), hair: '#4a3426', gear }
+  if (actor.main) return { body: color, cap: color, cape: shade(color, 0.62), hair: '#4a3426', gear }
   return { body: color, cap: color, hair: '#3a2b20', gear, apron: true }
 }
 
